@@ -1,5 +1,5 @@
 import streamlit as st
-st.title("MRZ Generator + Full Validator (TD1)")
+st.title("MRZ Generator + Validator (TD1 строгий формат)")
 # --- ФУНКЦИИ ---
 def char_value(c):
     if c.isdigit():
@@ -33,7 +33,7 @@ st.subheader("Даты")
 birth_date = st.text_input("Дата рождения YYMMDD", "930728")
 expiry_date = st.text_input("Срок действия YYMMDD", "260831")
 st.subheader("Дополнительные данные")
-optional1 = st.text_input("Optional строка 1", "05<15<B02<323")
+optional1 = st.text_input("Optional строка 1 (без << в начале)", "05<15<B02<323")
 optional2 = st.text_input("Optional строка 2", "4187905123")
 # --- ГЕНЕРАЦИЯ ---
 if st.button("Сгенерировать MRZ"):
@@ -41,17 +41,17 @@ if st.button("Сгенерировать MRZ"):
     doc_cd = check_digit(document_number)
     birth_cd = check_digit(birth_date)
     expiry_cd = check_digit(expiry_date)
-    # --- СТРОКА 1 ---
-    line1_core = doc_type + country + document_number + doc_cd
-    line1 = pad(line1_core + "<<" + optional1, 30)
+    # --- СТРОКА 1 (СТРОГО TD1) ---
+    line1_core = doc_type + country + document_number + doc_cd + optional1
+    line1 = pad(line1_core, 30)
     # --- СТРОКА 2 ---
     line2_core = (
         birth_date + birth_cd +
         sex +
         expiry_date + expiry_cd +
-        nationality
+        nationality + optional2
     )
-    line2 = pad(line2_core + "<<" + optional2, 30)
+    line2 = pad(line2_core, 30)
     # --- СТРОКА 3 ---
     name_block = format_name(surname) + "<<" + format_name(given_names)
     line3 = pad(name_block, 30)
@@ -60,15 +60,12 @@ if st.button("Сгенерировать MRZ"):
     st.text(line1)
     st.text(line2)
     st.text(line3)
-    # --- ПОЛНАЯ ПРОВЕРКА ---
-    st.subheader("Проверка (как сканер)")
-    # проверка номера
+    # --- ПРОВЕРКА ---
+    st.subheader("Проверка (ICAO)")
     doc_valid = (check_digit(document_number) == doc_cd)
-    # проверка даты рождения
     birth_valid = (check_digit(birth_date) == birth_cd)
-    # проверка срока
     expiry_valid = (check_digit(expiry_date) == expiry_cd)
-    # ОБЩАЯ КОНТРОЛЬНАЯ СУММА (комбинированная)
+    # финальная контрольная строка
     final_string = (
         document_number + doc_cd +
         birth_date + birth_cd +
@@ -80,7 +77,7 @@ if st.button("Сгенерировать MRZ"):
     st.write("Дата рождения валидна:", birth_valid)
     st.write("Срок действия валиден:", expiry_valid)
     st.write("Общая контрольная сумма:", final_cd)
-    # --- OPTIONAL DATA ---
+    # --- OPTIONAL ---
     st.subheader("Optional данные")
     st.write("Строка 1:", split_optional(optional1))
     st.write("Строка 2:", split_optional(optional2))
