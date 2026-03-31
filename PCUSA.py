@@ -1,5 +1,5 @@
 import streamlit as st
-st.title("MRZ Generator + Validator (TD1 строгий формат)")
+st.title("US Passport Card MRZ Generator (реальный формат)")
 # --- ФУНКЦИИ ---
 def char_value(c):
     if c.isdigit():
@@ -17,67 +17,60 @@ def pad(text, length):
     return text.ljust(length, "<")[:length]
 def format_name(s):
     return s.upper().replace(" ", "<")
-def split_optional(data):
-    return [x for x in data.split("<") if x]
 # --- ВВОД ---
-st.subheader("Основные данные")
-doc_type = st.text_input("Тип документа (IP)", "IP")
-country = st.text_input("Страна (USA)", "USA")
+doc_type = st.text_input("Тип документа", "IP")
+country = st.text_input("Страна", "USA")
 document_number = st.text_input("Номер документа", "C12928600")
-st.subheader("Персональные данные")
 surname = st.text_input("Фамилия", "GOMEZ")
 given_names = st.text_input("Имя", "KEVIN ALEXANDER")
 sex = st.selectbox("Пол", ["M", "F", "<"])
 nationality = st.text_input("Гражданство", "USA")
-st.subheader("Даты")
 birth_date = st.text_input("Дата рождения YYMMDD", "930728")
 expiry_date = st.text_input("Срок действия YYMMDD", "260831")
-st.subheader("Дополнительные данные")
-optional1 = st.text_input("Optional строка 1 (без << в начале)", "05<15<B02<323")
+optional1 = st.text_input("Optional строка 1", "05<15<B02<323")
 optional2 = st.text_input("Optional строка 2", "4187905123")
 # --- ГЕНЕРАЦИЯ ---
-if st.button("Сгенерировать MRZ"):
-    # --- контрольные цифры ---
+if st.button("Сгенерировать"):
+    # контрольные цифры
     doc_cd = check_digit(document_number)
     birth_cd = check_digit(birth_date)
     expiry_cd = check_digit(expiry_date)
-    # --- СТРОКА 1 (СТРОГО TD1) ---
-    line1_core = doc_type + country + document_number + doc_cd + optional1
-    line1 = pad(line1_core, 30)
-    # --- СТРОКА 2 ---
-    line2_core = (
+    # СТРОКА 1 (как в США)
+    line1 = pad(
+        doc_type + country + document_number + doc_cd + "<<" + optional1,
+        30
+    )
+    # СТРОКА 2
+    line2 = pad(
         birth_date + birth_cd +
         sex +
         expiry_date + expiry_cd +
-        nationality + optional2
+        nationality + "<<" + optional2,
+        30
     )
-    line2 = pad(line2_core, 30)
-    # --- СТРОКА 3 ---
-    name_block = format_name(surname) + "<<" + format_name(given_names)
-    line3 = pad(name_block, 30)
-    # --- ВЫВОД ---
+    # СТРОКА 3
+    line3 = pad(
+        format_name(surname) + "<<" + format_name(given_names),
+        30
+    )
     st.subheader("MRZ")
     st.text(line1)
     st.text(line2)
     st.text(line3)
-    # --- ПРОВЕРКА ---
-    st.subheader("Проверка (ICAO)")
-    doc_valid = (check_digit(document_number) == doc_cd)
-    birth_valid = (check_digit(birth_date) == birth_cd)
-    expiry_valid = (check_digit(expiry_date) == expiry_cd)
-    # финальная контрольная строка
-    final_string = (
-        document_number + doc_cd +
-        birth_date + birth_cd +
-        expiry_date + expiry_cd +
-        optional2
-    )
-    final_cd = check_digit(final_string)
-    st.write("Номер документа валиден:", doc_valid)
-    st.write("Дата рождения валидна:", birth_valid)
-    st.write("Срок действия валиден:", expiry_valid)
-    st.write("Общая контрольная сумма:", final_cd)
-    # --- OPTIONAL ---
-    st.subheader("Optional данные")
-    st.write("Строка 1:", split_optional(optional1))
-    st.write("Строка 2:", split_optional(optional2))
+    # --- ПРОВЕРКА (как валидатор) ---
+    st.subheader("Проверка")
+    # 1. Проверка номера
+    extracted_number = line1[5:14]
+    extracted_cd = line1[14]
+    valid_doc = check_digit(extracted_number) == extracted_cd
+    # 2. Проверка даты рождения
+    birth = line2[0:6]
+    birth_cd_real = line2[6]
+    valid_birth = check_digit(birth) == birth_cd_real
+    # 3. Проверка срока
+    expiry = line2[8:14]
+    expiry_cd_real = line2[14]
+    valid_expiry = check_digit(expiry) == expiry_cd_real
+    st.write("Номер документа валиден:", valid_doc)
+    st.write("Дата рождения валидна:", valid_birth)
+    st.write("Срок действия валиден:", valid_expiry)
